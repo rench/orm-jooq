@@ -1,0 +1,76 @@
+buildscript {
+	ext {
+		springBootVersion = '2.1.1.RELEASE'
+	}
+	repositories {
+	    maven { url 'http://maven.aliyun.com/nexus/content/groups/public'}
+		mavenCentral()
+	}
+	dependencies {
+		classpath("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
+		classpath 'org.jooq:jooq-codegen:3.7.4'
+		classpath 'mysql:mysql-connector-java:8.0.13'
+	}
+}
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'org.springframework.boot'
+apply plugin: 'io.spring.dependency-management'
+
+group = 'com.lowang'
+version = '0.0.1-SNAPSHOT'
+sourceCompatibility = 1.8
+
+repositories {
+	mavenCentral()
+}
+
+
+dependencies {
+	implementation('org.springframework.boot:spring-boot-starter-jooq')
+	implementation('org.springframework.boot:spring-boot-starter-web')
+	implementation('org.modelmapper.extensions:modelmapper-jooq:2.3.0')
+	runtimeOnly('mysql:mysql-connector-java')
+	compileOnly('org.projectlombok:lombok')
+	testImplementation('org.springframework.boot:spring-boot-starter-test')
+}
+task generate () {
+    // Use your favourite XML builder to construct the code generation configuration file
+    // ----------------------------------------------------------------------------------
+    def writer = new StringWriter()
+    def xml = new groovy.xml.MarkupBuilder(writer)
+    .configuration('xmlns': 'http://www.jooq.org/xsd/jooq-codegen-3.7.0.xsd') {
+        jdbc() {
+            driver('com.mysql.jdbc.Driver')
+            url('jdbc:mysql://localhost:3306/lowang?serverTimezone=GMT%2B8&euseUnicdoe=true&characterEncoding=utf-8&useSSL=true')
+            user('root')
+            password('root')
+        }
+        generator() {
+            database() {
+                name('org.jooq.util.mysql.MySQLDatabase')
+                inputSchema('lowang')//数据库名
+                includes("")//包含的表，这里是用正则规则匹配的，例如，如果要包含所有"t_"开头的表，则写成includes("t_\\w+")，多张表用"|"符号隔开即可
+                excludes("")//不包含的表
+            }
+    
+            // Watch out for this caveat when using MarkupBuilder with "reserved names"
+            // - https://github.com/jOOQ/jOOQ/issues/4797
+            // - http://stackoverflow.com/a/11389034/521799
+            // - https://groups.google.com/forum/#!topic/jooq-user/wi4S9rRxk4A
+            generate([:]) {
+                pojos true
+                daos true
+            }
+            target() {
+                packageName('com.lowang.ormjooq.domain')
+                directory('src/main/java')
+            }
+        }
+    }
+    
+    // Run the code generator
+    // ----------------------
+    org.jooq.util.GenerationTool.generate(writer.toString())
+}

@@ -1,0 +1,39 @@
+#https://gitee.com/huangyongqiang/codes/cpd2buo9yt617jvqmalwe22
+import groovy.xml.MarkupBuilder
+import org.jooq.util.GenerationTool
+import javax.xml.bind.JAXB
+task jooq_code_generate << {
+    def writer = new StringWriter()
+    new MarkupBuilder(writer)
+            .configuration('xmlns': 'http://www.jooq.org/xsd/jooq-codegen-3.9.0.xsd') {
+        jdbc() {
+            driver('com.mysql.jdbc.Driver')//mysql驱动，需要和项目依赖的mysql-connector版本对应
+            url('jdbc:mysql://192.168.31.97:3306?characterEncoding=UTF-8&allowMultiQueries=true')//url所连接数据库表需要和真实使用环境的库表保持一致
+            user('test')//数据库用户名
+            password('123456')//密码
+        }
+        generator() {
+            name('org.jooq.util.ScalaGenerator')
+            database() {
+                name('org.jooq.util.mysql.MySQLDatabase')
+                inputSchema('testdb')//数据库名
+                includes("t_profile")//包含的表，这里是用正则规则匹配的，例如，如果要包含所有"t_"开头的表，则写成includes("t_\\w+")，多张表用"|"符号隔开即可
+                excludes("schema_version")//不包含的表
+            }
+            generate([:]) {
+                pojos true//是否生成数据表对应的javabean类
+                //daos true//是否生成数据表对应的dao层，这里生成的dao能执行基本的增删改查sql操作，复杂一点的操作需要自己写dao
+            }
+            //生成类输出目录
+            target() {
+                packageName('com.study.jooq.data')//输出具体目录，生成的jooq类会在这个目录底下
+                directory('src/main/scala')//输出根目录
+                encoding("UTF-8")//编码格式
+            }
+        }
+    }
+    // 执行脚本
+    GenerationTool.generate(
+            JAXB.unmarshal(new StringReader(writer.toString()), org.jooq.util.jaxb.Configuration.class)
+    )
+}
